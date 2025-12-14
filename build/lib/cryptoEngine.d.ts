@@ -1,3 +1,7 @@
+/**
+ * Cryptographic engine compatible with various Roborock protocol versions.
+ * Supports legacy 1.0, A01 (AES-CBC), L01 (AES-GCM), and B01 modes.
+ */
 export declare const cryptoEngine: {
     /**
      * Generates an RSA keypair if one does not already exist.
@@ -25,8 +29,8 @@ export declare const cryptoEngine: {
     encryptL01(payload: Buffer | string, localKey: string, ts: number, seq: number, random: number, connectNonce: number, ackNonce?: number): Buffer;
     decryptL01(payload: Buffer, localKey: string, ts: number, seq: number, random: number, connectNonce: number, ackNonce?: number): Buffer;
     /**
-     * Encrypts a B01 payload.
-     * Uses AES-128-CBC. The IV is derived from the message header random value and a specific salt.
+     * Encrypts a payload for the B01 protocol using AES-128-CBC.
+     * The IV is derived from the random seed and a static salt.
      */
     encryptB01(payload: Buffer | string, localKey: string, ivInput: number): Buffer;
     /**
@@ -34,9 +38,9 @@ export declare const cryptoEngine: {
      */
     decryptB01(payload: Buffer, localKey: string, ivInput: number): Buffer;
     /**
-     * Derives the initialization vector (IV) for the B01 protocol.
-     * The derivation uses MD5 on the hex-string representation of the input combined with a static salt.
-     * Reference salt found in librrcodec.so.
+     * Derives the initial vector (IV) specifically for B01 protocol encryption.
+     * Computes MD5(hex(random) + salt) and extracts the middle 16 bytes.
+     * Salt source: librrcodec.so (hardcoded)
      */
     deriveB01IV(ivInput: number): Buffer;
     encryptPassword(password: string, k: string): string;

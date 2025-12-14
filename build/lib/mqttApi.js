@@ -207,10 +207,10 @@ class mqtt_api {
             try {
                 const parsedPayload = JSON.parse(data.payload.toString());
                 this.adapter.log.debug(`[MQTT] ${data.version} Message from ${duid}: ${JSON.stringify(parsedPayload)}`);
-                // B01: Extract nested response from the standard B01 response key "10001"
+                // B01: Extract nested response from key "10001"
                 if (data.version === "B01" && parsedPayload.dps?.["10001"]) {
                     let inner = parsedPayload.dps["10001"];
-                    // B01 payloads can handle nested JSON strings within the dps object
+                    // B01 payloads contain nested JSON strings
                     if (typeof inner === "string") {
                         try {
                             inner = JSON.parse(inner);

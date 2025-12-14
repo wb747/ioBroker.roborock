@@ -208,9 +208,9 @@ export class messageParser {
 			};
 		}
 
-		// B01 payload (Nested Object, key "10000" is standard for B01 control channel)
+		// B01 payload (Nested Object, key "10000" refers to the control endpoint)
 		if (version === "B01") {
-			return JSON.stringify({ dps: { "10000": inner }, t: timestamp });
+			return JSON.stringify({ dps: { "10000": JSON.stringify(inner) }, t: timestamp });
 		}
 
 		return JSON.stringify({ dps: { [protocol]: JSON.stringify(inner) }, t: timestamp });
