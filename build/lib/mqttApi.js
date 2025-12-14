@@ -202,15 +202,40 @@ class mqtt_api {
      * Processes a single decoded Roborock message frame.
      */
     async handleDecodedMessage(duid, data, endpoint) {
-        // 1. Protocol A01 (Tuya-like / JSON payload)
-        if (data.version === "A01") {
+        // 1. Protocol A01 / B01 (Tuya-like / JSON payload)
+        if (data.version === "A01" || data.version === "B01") {
             try {
                 const parsedPayload = JSON.parse(data.payload.toString());
-                this.adapter.log.debug(`[MQTT] A01 Message from ${duid}: ${JSON.stringify(parsedPayload)}`);
+                this.adapter.log.debug(`[MQTT] ${data.version} Message from ${duid}: ${JSON.stringify(parsedPayload)}`);
+                // B01: Extract nested response from the standard B01 response key "10001"
+                if (data.version === "B01" && parsedPayload.dps?.["10001"]) {
+                    let inner = parsedPayload.dps["10001"];
+                    // B01 payloads can handle nested JSON strings within the dps object
+                    if (typeof inner === "string") {
+                        try {
+                            inner = JSON.parse(inner);
+                        }
+                        catch (e) {
+                            this.adapter.log.warn(`[MQTT] Failed to parse B01 nested string payload: ${e}`);
+                            return;
+                        }
+                    }
+                    // Verify typical response fields (msgId or id) to map back to the original request
+                    const reqId = inner.msgId || inner.id;
+                    if (reqId) {
+                        if (this.adapter.pendingRequests.has(reqId)) {
+                            const pending = this.adapter.pendingRequests.get(reqId);
+                            this.adapter.log.debug(`[MQTT] B01 Nested Response for ${pending.method} (ID: ${reqId})`);
+                            // Map the response 'data' (on success) or fallback to 'result'/'error'
+                            const result = inner.code === 0 ? inner.data : (inner.error || inner.result);
+                            this.adapter.requestsHandler.resolvePendingRequest(reqId, result, "B01");
+                        }
+                    }
+                }
                 await this.adapter.processA01(duid, parsedPayload);
             }
             catch (e) {
-                this.adapter.log.error(`[MQTT] Failed to parse A01 payload: ${e}`);
+                this.adapter.log.error(`[MQTT] Failed to parse ${data.version} payload: ${e}`);
             }
             return;
         }

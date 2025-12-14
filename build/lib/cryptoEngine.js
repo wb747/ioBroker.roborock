@@ -170,6 +170,46 @@ exports.cryptoEngine = {
         decipher.setAuthTag(tag);
         return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     },
+    // ---------- B01 (AES-128-CBC with custom IV) ----------
+    /**
+     * Encrypts a B01 payload.
+     * Uses AES-128-CBC. The IV is derived from the message header random value and a specific salt.
+     */
+    encryptB01(payload, localKey, ivInput) {
+        const key = toBuffer(localKey);
+        const iv = this.deriveB01IV(ivInput);
+        const cipher = crypto.createCipheriv("aes-128-cbc", key, iv);
+        cipher.setAutoPadding(true);
+        const data = Buffer.isBuffer(payload) ? payload : Buffer.from(payload, "utf8");
+        return Buffer.concat([cipher.update(data), cipher.final()]);
+    },
+    /**
+     * Decrypts a B01 payload.
+     */
+    decryptB01(payload, localKey, ivInput) {
+        const key = toBuffer(localKey);
+        const iv = this.deriveB01IV(ivInput);
+        const decipher = crypto.createDecipheriv("aes-128-cbc", key, iv);
+        decipher.setAutoPadding(true);
+        return Buffer.concat([decipher.update(payload), decipher.final()]);
+    },
+    /**
+     * Derives the initialization vector (IV) for the B01 protocol.
+     * The derivation uses MD5 on the hex-string representation of the input combined with a static salt.
+     * Reference salt found in librrcodec.so.
+     */
+    deriveB01IV(ivInput) {
+        // 1. Format ivInput as 8-char lowercase hex
+        const prefix = (ivInput >>> 0).toString(16).padStart(8, "0").toLowerCase();
+        // 2. Append the B01 salt
+        const suffix = "5wwh9ikChRjASpMU8cxg7o1d2E";
+        // 3. MD5 hash
+        const hash = crypto.createHash("md5").update(prefix + suffix).digest("hex");
+        // 4. Extract substring [9:25] (16 chars from 9th index)
+        // Python [9:25] means index 9 up to (exclusive) 25. Length = 16.
+        const ivHex = hash.substring(9, 25);
+        return Buffer.from(ivHex, "utf8");
+    },
     // ---------- Password Encryption (Login V4) ----------
     encryptPassword(password, k) {
         const derivedKey = k.slice(4) + k.slice(0, 4);
